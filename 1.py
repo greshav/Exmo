@@ -9,6 +9,23 @@ percent = 1							#  минимальный процент от сделки
 fees = 1.00							#1.004
 a = []
 
+a = {}
+
+def fees_limit(dct):
+    '''
+    lst - global list to save array of pairs
+    return [{pair:[min quantity, taker fee, maker fee]}, ...}
+    '''
+    r = requests.get('https://exmo.me/ctrl/feesAndLimits')
+    resp = json.loads(r.text)['data']['limits']
+    for s in resp:
+        nm = s['pair'].replace('/', '_')
+        dct[nm] = [float(s['min_q']), float(s['taker']), float(s['maker'])]
+
+def get_ticker():
+    r = requests.get('https://api.exmo.me/v1/ticker/')
+    return json.loads(r.text)
+
 def get_list():
 	global obj
 	r = requests.get('https://api.exmo.me/v1/ticker/')
@@ -136,5 +153,3 @@ def main():
 
 if __name__=="__main__":
     main()
-
-# HI
