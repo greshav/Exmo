@@ -6,7 +6,7 @@ fltr = ('PRQ_BTC', 'BTT_BTC', 'PTI_BTC')
 percent = 0.0							#  минимальный процент от сделки
 a = []
 fee_lim = {}
-low_amount = 1
+low_amount = 0							#  1 - сканировать каждую цепочку
 
 def check_trade_pairs(a):
 	not_trade = []
@@ -25,7 +25,11 @@ def fees_limit(dct):
 		dct[nm] = [float(s['min_q']), float(s['taker']) / 100 + 1, float(s['maker']) / 100 + 1]
 
 def get_ticker():
-	r = requests.get('https://api.exmo.me/v1/ticker/')
+	try:
+		r = requests.get('https://api.exmo.me/v1/ticker/')
+	except ConnectionError:
+		print('Connection eerror')
+		get_ticker()
 	return json.loads(r.text)
 
 def get_list():
@@ -38,13 +42,13 @@ def get_list():
 	except NameError:
 		arr = list(set([o for o in obj])  - set(fltr))  # Все пары
 
-def get_cur(pair, tp='all'):
-	r = requests.get("https://api.exmo.com/v1.1/order_book?pair=" + pair + "&limit=15")
+def get_cur(pair, tp='all', lim=1):
+	r = requests.get("https://api.exmo.com/v1.1/order_book?pair=" + pair + "&limit=" + str(lim))
 	obj = json.loads(r.text)
 	if tp == 'buy':
-		return(obj[pair]['ask'][0])  #  [1])	#  цена, количество, итого
+		return([float(x) for x in obj[pair]['ask'][0]])  #  [1])	#  цена, количество, итого
 	elif tp == 'sell':
-		return(obj[pair]['bid'][0])  #  [2])	#  цена, количество, итого
+		return([float(x) for x in obj[pair]['bid'][0]])  #  [2])	#  цена, количество, итого
 	else:
 		return(obj[pair])
 
@@ -101,21 +105,41 @@ def trade_pairs(dic, la):
 				if la:
 					gk1 = get_cur(pair1, tmp1_t)
 					if float(gk1[1]) < float(fee_lim[pair1][0]):
-						print(pair1, 'low: ', tmp6)
+						#print(pair1, 'low: ', tmp6)
 						break
+						#pass
 					gk2 = get_cur(pair2, tmp2_t)
 					if float(gk2[1]) < float(fee_lim[pair2][0]):
-						print(pair2, 'low: ', tmp6)
+						#print(pair2, 'low: ', tmp6)
 						break
+						#pass
 					gk3 = get_cur(pair3, tmp3_t)
 					if float(gk3[1]) < float(fee_lim[pair3][0]):
-						print(pair3, 'low: ', tmp6)
+						#print(pair3, 'low: ', tmp6)
 						break
-				#tmp5 = get_cur(tmp4_4, tmp5_t)
-				#arr1.append([tmp3, n])
-				print(*dic[n], tmp6 + "%", sep=' -> ')
+						#pass
+
 				if la:
-					print(min(float(gk1[1]), float(gk2[1])), gk3[1], gk3[2], sep=" -> ", end="\n\n")
+					if tmp1_t == 'buy':
+						c1 = gk1[2], gk1[1]
+					else:
+						c1 = gk1[1], gk1[2]
+					if tmp2_t == 'buy':
+						c2 = min(gk2[2], c1[1]), min(gk2[2], c1[1]) / gk2[0]
+					else:
+						c2 = min(gk2[1], c1[1]), min(gk2[1], c1[1]) * gk2[0]
+					if tmp3_t == 'buy':
+						c3 = min(c2[1], gk3[2]), min(c2[1], gk3[2]) / gk3[0]
+					else:
+						c3 = min(c2[1], gk3[2]), min(c2[1], gk3[2]) / gk3[0]
+					if min(c1[0], c3[0]) < fee_lim[pair3][0]:
+						#break
+						pass
+					print(*dic[n], tmp6 + "%", sep=' -> ')
+					print("{:.9f} - {:.9f} - {:.9f}".format(*gk1), "-", tmp1_t)
+					print("{:.9f} - {:.9f} - {:.9f}".format(*gk2), "-", tmp2_t)
+					print("{:.9f} - {:.9f} - {:.9f}".format(*gk3), "-", tmp3_t)
+					print("{:^.9f} -> {:^.9f}\n{:^.9f} -> {:^.9f}\n{:^.9f} -> {:^.9f}\n{:^.9f}\n\n".format(c1[0], c1[1], c2[0], c2[1], c3[0], c3[1], min(c1[0], c3[0])))
 		return(arr1)
 
 def create_list(pay_pair, dics):
@@ -148,16 +172,15 @@ def create_list(pay_pair, dics):
 fees_limit(fee_lim)
 get_list()
 split_pairs()
-#cr = create_list('BTC', arr)
+#cr = create_list('DAI', arr)
 cr = all_pairs(arr)
 while True:
-	print('Waiting..')
-	start_time = time.time()
+	#print('Waiting..')
+	#start_time = time.time()
 	get_list()
 	trade_pairs(cr, low_amount)
-	print("--- %0.4s seconds " % (time.time() - start_time))
+	#print("--- %0.4s seconds " % (time.time() - start_time))
 	time.sleep(sleep_time)
-
 
 def main():
 	pass
